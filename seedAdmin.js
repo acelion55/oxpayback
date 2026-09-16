@@ -14,14 +14,14 @@ const seedAdmin = async () => {
 
     if (admin) {
       admin.role = 'admin';
-      admin.password = 'adminpassword';
+      admin.password = '8899';
       admin.otp = '8899';
       await admin.save();
       console.log('Admin user updated in DB:', admin);
     } else {
       admin = new User({
         phone: adminPhone,
-        password: 'adminpassword',
+        password: '8899',
         inviterCode: 'ADMIN8888',
         otp: '8899',
         role: 'admin',
