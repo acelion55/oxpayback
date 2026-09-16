@@ -8,8 +8,14 @@ const adminRoutes = require('./routes/adminRoutes');
 
 const app = express();
 
-// Middleware
-app.use(cors());
+// Middleware - Enable CORS for frontend deployment (https://oxpay-weld.vercel.app)
+app.use(
+  cors({
+    origin: '*',
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+  })
+);
 app.use(express.json());
 
 // Routes
@@ -35,7 +41,6 @@ mongoose
   })
   .catch((err) => {
     console.error('MongoDB Atlas Connection Error:', err.message);
-    // Fallback: Start server even if DB connection has network/whitelisting issue so endpoints can be tested or fallback cleanly
     app.listen(PORT, () => {
       console.log(`Server running in fallback mode on port ${PORT}`);
     });
