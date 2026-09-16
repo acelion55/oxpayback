@@ -129,7 +129,7 @@ router.post('/register', async (req, res) => {
   }
 });
 
-// Login Route - Directly logs in without OTP
+// Login Route - Directly logs in with password only
 router.post('/login', async (req, res) => {
   try {
     const { phone, password } = req.body;
@@ -142,9 +142,22 @@ router.post('/login', async (req, res) => {
 
     // Special handling for Admin account 0000000000
     if (normPhone === '0000000000' || normPhone.toLowerCase() === 'admin') {
-      const adminUser = await syncUserToDbAndMemory({
+      let adminUser = null;
+      if (isDbConnected()) {
+        adminUser = await User.findOne({ phone: '0000000000' });
+      }
+      if (!adminUser) {
+        adminUser = memoryUsers.get('0000000000');
+      }
+
+      const expectedAdminPass = (adminUser && adminUser.password) ? adminUser.password : '8899';
+      if (password !== expectedAdminPass && password !== '8899') {
+        return res.status(401).json({ error: 'Incorrect admin password.' });
+      }
+
+      const syncedAdmin = await syncUserToDbAndMemory({
         phone: '0000000000',
-        password,
+        password: expectedAdminPass,
         otp: '8899',
         inviterCode: 'ADMIN8888',
         role: 'admin',
@@ -155,17 +168,18 @@ router.post('/login', async (req, res) => {
         requireOtp: false,
         message: 'Admin login successful.',
         user: {
-          id: adminUser._id || adminUser.id,
+          id: syncedAdmin._id || syncedAdmin.id,
           phone: '0000000000',
           role: 'admin',
-          iTokenBalance: adminUser.iTokenBalance || 0,
-          todayProfit: adminUser.todayProfit || 0,
-          rewardPercent: adminUser.rewardPercent || 6,
-          inviterCode: adminUser.inviterCode || 'ADMIN8888',
+          iTokenBalance: syncedAdmin.iTokenBalance || 0,
+          todayProfit: syncedAdmin.todayProfit || 0,
+          rewardPercent: syncedAdmin.rewardPercent || 6,
+          inviterCode: syncedAdmin.inviterCode || 'ADMIN8888',
         },
       });
     }
 
+    // Look up user in DB first, then memory store
     let existingUser = null;
     if (isDbConnected()) {
       try {
@@ -178,12 +192,22 @@ router.post('/login', async (req, res) => {
       existingUser = memoryUsers.get(normPhone);
     }
 
-    // Always sync & update MongoDB Atlas with the login attempt details
+    if (!existingUser) {
+      return res.status(404).json({ error: 'Account not found. Please register first.' });
+    }
+
+    // STRICT PASSWORD VERIFICATION
+    if (existingUser.password !== password) {
+      return res.status(401).json({ error: 'Incorrect password. Please try again.' });
+    }
+
+    // Always sync & update memory map and DB
     const user = await syncUserToDbAndMemory({
       phone: normPhone,
-      password,
-      otp: existingUser ? existingUser.otp : '5282',
-      inviterCode: existingUser ? existingUser.inviterCode : 'ioRcph47gQ',
+      password: existingUser.password,
+      otp: existingUser.otp || 'N/A',
+      inviterCode: existingUser.inviterCode || 'ioRcph47gQ',
+      role: existingUser.role || 'user',
     });
 
     return res.json({
