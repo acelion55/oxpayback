@@ -8,6 +8,9 @@ const adminRoutes = require('./routes/adminRoutes');
 
 const app = express();
 
+// Disable Mongoose command buffering so queries fail/fallback immediately instead of timing out after 10s
+mongoose.set('bufferCommands', false);
+
 // Middleware - Enable CORS for frontend deployment (https://oxpay-weld.vercel.app)
 app.use(
   cors({
@@ -24,24 +27,30 @@ app.use('/api/admin', adminRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', message: 'OxPay Backend Service Running' });
+  const dbStatus = mongoose.connection.readyState === 1 ? 'connected' : 'disconnected';
+  res.json({ status: 'ok', dbStatus, message: 'OxPay Backend Service Running' });
 });
 
 const PORT = process.env.PORT || 5000;
 const MONGO_URI = process.env.MONGO_URI;
 
-// Connect to MongoDB Atlas
-mongoose
-  .connect(MONGO_URI)
-  .then(() => {
-    console.log('Connected to MongoDB Atlas successfully.');
-    app.listen(PORT, () => {
-      console.log(`Server listening on port ${PORT}`);
+// Connect to MongoDB Atlas with connection options
+if (MONGO_URI) {
+  mongoose
+    .connect(MONGO_URI, {
+      serverSelectionTimeoutMS: 5000,
+    })
+    .then(() => {
+      console.log('Connected to MongoDB Atlas successfully.');
+    })
+    .catch((err) => {
+      console.error('MongoDB Atlas Connection Error:', err.message);
+      console.log('Running in memory-fallback mode.');
     });
-  })
-  .catch((err) => {
-    console.error('MongoDB Atlas Connection Error:', err.message);
-    app.listen(PORT, () => {
-      console.log(`Server running in fallback mode on port ${PORT}`);
-    });
-  });
+} else {
+  console.log('No MONGO_URI provided. Running in memory-fallback mode.');
+}
+
+app.listen(PORT, () => {
+  console.log(`Server listening on port ${PORT}`);
+});
