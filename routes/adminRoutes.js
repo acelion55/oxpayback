@@ -1,7 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const mongoose = require('mongoose');
-const User = require('../models/User');
+const path = require('path');
+const User = require(path.join(__dirname, '../models/User'));
 
 const isDbConnected = () => mongoose.connection.readyState === 1;
 
@@ -24,7 +25,7 @@ router.get('/users', async (req, res) => {
       });
     } else {
       // Memory Store Fallback
-      const { memoryUsers } = require('./authRoutes');
+      const { memoryUsers } = require(path.join(__dirname, 'authRoutes'));
       const userList = Array.from(memoryUsers.values()).map((u) => ({
         id: u.id,
         phone: u.phone,
