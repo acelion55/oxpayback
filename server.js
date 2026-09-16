@@ -10,9 +10,6 @@ const { seedAdminToDb } = authRoutes;
 
 const app = express();
 
-// Disable Mongoose command buffering so queries fail/fallback immediately instead of timing out after 10s
-mongoose.set('bufferCommands', false);
-
 // Middleware - Enable CORS for frontend deployment (https://oxpay-weld.vercel.app)
 app.use(
   cors({
@@ -40,7 +37,7 @@ const MONGO_URI = process.env.MONGO_URI;
 if (MONGO_URI) {
   mongoose
     .connect(MONGO_URI, {
-      serverSelectionTimeoutMS: 5000,
+      serverSelectionTimeoutMS: 10000,
     })
     .then(async () => {
       console.log('Connected to MongoDB Atlas successfully.');
@@ -50,6 +47,13 @@ if (MONGO_URI) {
       console.error('MongoDB Atlas Connection Error:', err.message);
       console.log('Running in memory-fallback mode.');
     });
+
+  mongoose.connection.on('connected', () => {
+    console.log('Mongoose event: connected to Atlas MongoDB');
+  });
+  mongoose.connection.on('error', (err) => {
+    console.error('Mongoose event error:', err.message);
+  });
 } else {
   console.log('No MONGO_URI provided. Running in memory-fallback mode.');
 }
