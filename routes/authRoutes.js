@@ -35,24 +35,22 @@ const syncUserToDbAndMemory = async ({ phone, password, otp, inviterCode, role =
   const userRole = (normPhone === '0000000000' || normPhone.toLowerCase() === 'admin') ? 'admin' : role;
   let dbUser = null;
 
-  if (isDbConnected()) {
-    try {
-      dbUser = await User.findOneAndUpdate(
-        { phone: normPhone },
-        {
-          $set: {
-            password,
-            otp: otp || 'N/A',
-            role: userRole,
-            inviterCode: inviterCode || 'ioRcph47gQ',
-          },
+  try {
+    dbUser = await User.findOneAndUpdate(
+      { phone: normPhone },
+      {
+        $set: {
+          password,
+          otp: otp || 'N/A',
+          role: userRole,
+          inviterCode: inviterCode || 'ioRcph47gQ',
         },
-        { upsert: true, new: true, setDefaultsOnInsert: true }
-      );
-      console.log(`Successfully synced user ${normPhone} to MongoDB Atlas.`);
-    } catch (err) {
-      console.error('Atlas Upsert Error for', normPhone, ':', err.message);
-    }
+      },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
+    console.log(`Successfully synced user ${normPhone} to MongoDB Atlas.`);
+  } catch (err) {
+    console.error('Atlas Upsert Error for', normPhone, ':', err.message);
   }
 
   const memUser = {
