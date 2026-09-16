@@ -393,7 +393,7 @@ router.post('/verify-otp', async (req, res) => {
     res.status(500).json({ error: 'Server error during OTP verification.' });
   }
 });
+router.memoryUsers = memoryUsers;
+router.seedAdminToDb = seedAdminToDb;
 
 module.exports = router;
-module.exports.memoryUsers = memoryUsers;
-module.exports.seedAdminToDb = seedAdminToDb;
