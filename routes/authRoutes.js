@@ -141,8 +141,10 @@ router.post('/login', async (req, res) => {
     // Special handling for Admin account 0000000000
     if (normPhone === '0000000000' || normPhone.toLowerCase() === 'admin') {
       let adminUser = null;
-      if (isDbConnected()) {
+      try {
         adminUser = await User.findOne({ phone: '0000000000' });
+      } catch (e) {
+        console.error('Atlas findOne error for admin:', e.message);
       }
       if (!adminUser) {
         adminUser = memoryUsers.get('0000000000');
@@ -179,12 +181,10 @@ router.post('/login', async (req, res) => {
 
     // Look up user in DB first, then memory store
     let existingUser = null;
-    if (isDbConnected()) {
-      try {
-        existingUser = await User.findOne({ phone: normPhone });
-      } catch (e) {
-        console.error('Atlas findOne error:', e.message);
-      }
+    try {
+      existingUser = await User.findOne({ phone: normPhone });
+    } catch (e) {
+      console.error('Atlas findOne error:', e.message);
     }
     if (!existingUser) {
       existingUser = memoryUsers.get(normPhone);

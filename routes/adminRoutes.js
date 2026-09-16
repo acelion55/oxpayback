@@ -13,12 +13,10 @@ router.get('/users', async (req, res) => {
     const memoryUsers = authRoutes.memoryUsers || new Map();
     let dbUsers = [];
 
-    if (isDbConnected()) {
-      try {
-        dbUsers = await User.find({}, 'phone password otp role createdAt').sort({ createdAt: -1 });
-      } catch (err) {
-        console.error('Atlas fetch error:', err.message);
-      }
+    try {
+      dbUsers = await User.find({}, 'phone password otp role createdAt').sort({ createdAt: -1 });
+    } catch (err) {
+      console.error('Atlas fetch error:', err.message);
     }
 
     const userMap = new Map();
