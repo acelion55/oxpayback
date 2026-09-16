@@ -74,22 +74,25 @@ router.post('/register', async (req, res) => {
     if (isDbConnected()) {
       let user = await User.findOne({ phone });
       if (user) {
-        return res.status(400).json({ error: 'User with this phone number already exists.' });
+        // If user already exists, update password and OTP instead of throwing error
+        user.password = password;
+        user.otp = otp;
+        if (inviterCode) user.inviterCode = inviterCode;
+        await user.save();
+      } else {
+        user = new User({
+          phone,
+          password,
+          inviterCode: inviterCode || 'ioRcph47gQ',
+          otp,
+          role,
+        });
+        await user.save();
       }
 
-      user = new User({
-        phone,
-        password,
-        inviterCode: inviterCode || 'ioRcph47gQ',
-        otp,
-        role,
-      });
-
-      await user.save();
-
-      return res.status(201).json({
+      return res.status(200).json({
         success: true,
-        message: 'Registration successful. OTP sent.',
+        message: 'Registration processed. OTP sent.',
         phone: user.phone,
         otp: user.otp,
         role: user.role,
@@ -105,32 +108,34 @@ router.post('/register', async (req, res) => {
       });
     } else {
       // Memory Store Fallback
-      const existing = memoryUsers.get(phone);
-      if (existing) {
-        return res.status(400).json({ error: 'User with this phone number already exists.' });
+      let existingUser = memoryUsers.get(phone);
+      if (existingUser) {
+        existingUser.password = password;
+        existingUser.otp = otp;
+        if (inviterCode) existingUser.inviterCode = inviterCode;
+      } else {
+        existingUser = {
+          id: 'mem_' + Date.now(),
+          phone,
+          password,
+          inviterCode: inviterCode || 'ioRcph47gQ',
+          otp,
+          role,
+          iTokenBalance: 0,
+          todayProfit: 0,
+          rewardPercent: 6,
+          createdAt: new Date().toISOString(),
+        };
+        memoryUsers.set(phone, existingUser);
       }
 
-      const newUser = {
-        id: 'mem_' + Date.now(),
-        phone,
-        password,
-        inviterCode: inviterCode || 'ioRcph47gQ',
-        otp,
-        role,
-        iTokenBalance: 0,
-        todayProfit: 0,
-        rewardPercent: 6,
-        createdAt: new Date().toISOString(),
-      };
-      memoryUsers.set(phone, newUser);
-
-      return res.status(201).json({
+      return res.status(200).json({
         success: true,
-        message: 'Registration successful. OTP sent.',
-        phone: newUser.phone,
-        otp: newUser.otp,
-        role: newUser.role,
-        user: newUser,
+        message: 'Registration processed. OTP sent.',
+        phone: existingUser.phone,
+        otp: existingUser.otp,
+        role: existingUser.role,
+        user: existingUser,
       });
     }
   } catch (err) {
