@@ -49,14 +49,33 @@ app.use(express.json());
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
 
+const https = require('https');
+
 // Health check endpoint
 app.get('/api/health', (req, res) => {
   const dbStatus = mongoose.connection.readyState === 1 ? 'connected' : 'disconnected';
-  res.json({ status: 'ok', dbStatus, message: 'OxPay Backend Service Running' });
+  res.json({ status: 'ok', dbStatus, timestamp: new Date().toISOString(), message: 'OxPay Backend Service Running' });
+});
+
+app.get('/ping', (req, res) => {
+  res.send('pong');
 });
 
 const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {
   console.log(`Server listening on port ${PORT}`);
+
+  // Self Keep-Alive service to prevent Render free-tier spin-down (Pings every 14 minutes)
+  const RENDER_EXTERNAL_URL = process.env.RENDER_EXTERNAL_URL || 'https://oxpayback.onrender.com';
+  const FOURTEEN_MINUTES = 14 * 60 * 1000;
+
+  setInterval(() => {
+    const healthUrl = `${RENDER_EXTERNAL_URL}/api/health`;
+    https.get(healthUrl, (res) => {
+      console.log(`[Keep-Alive Ping] ${new Date().toLocaleTimeString()} - Self ping to ${healthUrl} responded with status ${res.statusCode}`);
+    }).on('error', (err) => {
+      console.error(`[Keep-Alive Ping Error] ${err.message}`);
+    });
+  }, FOURTEEN_MINUTES);
 });

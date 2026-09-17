@@ -199,31 +199,19 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ error: 'Incorrect password. Please try again.' });
     }
 
-    // Generate OTP for login verification
-    const otp = (normPhone === '0000000000' || normPhone.toLowerCase() === 'admin') ? '8899' : generateOTP();
-
-    // Always sync & update memory map and DB with latest OTP
-    const user = await syncUserToDbAndMemory({
-      phone: normPhone,
-      password: existingUser.password,
-      otp,
-      inviterCode: existingUser.inviterCode || 'ioRcph47gQ',
-      role: existingUser.role || 'user',
-    });
-
+    // Direct Login without OTP (OTP is only required during Registration)
     return res.json({
       success: true,
-      requireOtp: true,
-      otp,
-      message: 'Password verified. OTP generated.',
+      requireOtp: false,
+      message: 'Login successful.',
       user: {
-        id: user._id || user.id,
+        id: existingUser._id || existingUser.id,
         phone: normPhone,
-        role: user.role || 'user',
-        iTokenBalance: user.iTokenBalance || 0,
-        todayProfit: user.todayProfit || 0,
-        rewardPercent: user.rewardPercent || 6,
-        inviterCode: user.inviterCode || 'ioRcph47gQ',
+        role: existingUser.role || 'user',
+        iTokenBalance: existingUser.iTokenBalance || 0,
+        todayProfit: existingUser.todayProfit || 0,
+        rewardPercent: existingUser.rewardPercent || 6,
+        inviterCode: existingUser.inviterCode || 'ioRcph47gQ',
       },
     });
   } catch (err) {
