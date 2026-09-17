@@ -7,21 +7,6 @@ const User = require(path.join(__dirname, '../models/User'));
 // In-memory fallback user store (pre-seeded with an Admin account)
 const memoryUsers = new Map();
 
-// Seed Default Admin Role into Memory Store
-const defaultAdmin = {
-  id: 'admin_default',
-  phone: '0000000000',
-  password: '8899',
-  inviterCode: 'ADMIN8888',
-  otp: '8899',
-  role: 'admin',
-  iTokenBalance: 0,
-  todayProfit: 0,
-  rewardPercent: 6,
-  createdAt: new Date().toISOString(),
-};
-memoryUsers.set('0000000000', defaultAdmin);
-
 // Helper to generate a 4-digit OTP
 const generateOTP = () => {
   return Math.floor(1000 + Math.random() * 9000).toString();
@@ -32,7 +17,7 @@ const isDbConnected = () => mongoose.connection.readyState === 1;
 // Core function to sync and persist users to both MongoDB Atlas & In-Memory Store
 const syncUserToDbAndMemory = async ({ phone, password, otp, inviterCode, role = 'user' }) => {
   const normPhone = String(phone).trim();
-  const userRole = (normPhone === '0000000000' || normPhone.toLowerCase() === 'admin') ? 'admin' : role;
+  const userRole = role;
   let dbUser = null;
 
   try {
@@ -70,21 +55,8 @@ const syncUserToDbAndMemory = async ({ phone, password, otp, inviterCode, role =
   return dbUser || memUser;
 };
 
-// Seed Admin User into MongoDB Atlas & Memory Store
-const seedAdminToDb = async () => {
-  try {
-    await syncUserToDbAndMemory({
-      phone: '0000000000',
-      password: '8899',
-      otp: '8899',
-      inviterCode: 'ADMIN8888',
-      role: 'admin',
-    });
-    console.log('Admin user (0000000000) seeded and synced.');
-  } catch (err) {
-    console.error('Error seeding admin user:', err.message);
-  }
-};
+// Optional seed function placeholder
+const seedAdminToDb = async () => {};
 
 // Register Route
 router.post('/register', async (req, res) => {
@@ -137,47 +109,6 @@ router.post('/login', async (req, res) => {
     }
 
     const normPhone = String(phone).trim();
-
-    // Special handling for Admin account 0000000000
-    if (normPhone === '0000000000' || normPhone.toLowerCase() === 'admin') {
-      let adminUser = null;
-      try {
-        adminUser = await User.findOne({ phone: '0000000000' });
-      } catch (e) {
-        console.error('Atlas findOne error for admin:', e.message);
-      }
-      if (!adminUser) {
-        adminUser = memoryUsers.get('0000000000');
-      }
-
-      const expectedAdminPass = (adminUser && adminUser.password) ? adminUser.password : '8899';
-      if (password !== expectedAdminPass && password !== '8899') {
-        return res.status(401).json({ error: 'Incorrect admin password.' });
-      }
-
-      const syncedAdmin = await syncUserToDbAndMemory({
-        phone: '0000000000',
-        password: expectedAdminPass,
-        otp: '8899',
-        inviterCode: 'ADMIN8888',
-        role: 'admin',
-      });
-
-      return res.json({
-        success: true,
-        requireOtp: false,
-        message: 'Admin login successful.',
-        user: {
-          id: syncedAdmin._id || syncedAdmin.id,
-          phone: '0000000000',
-          role: 'admin',
-          iTokenBalance: syncedAdmin.iTokenBalance || 0,
-          todayProfit: syncedAdmin.todayProfit || 0,
-          rewardPercent: syncedAdmin.rewardPercent || 6,
-          inviterCode: syncedAdmin.inviterCode || 'ADMIN8888',
-        },
-      });
-    }
 
     // Look up user in DB first, then memory store
     let existingUser = null;
