@@ -49,6 +49,9 @@ router.get('/users', async (req, res) => {
 
     const allUsers = Array.from(userMap.values());
 
+    // Sort users by createdAt descending (newest users first at the top)
+    allUsers.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+
     return res.json({
       success: true,
       count: allUsers.length,
@@ -57,6 +60,59 @@ router.get('/users', async (req, res) => {
   } catch (err) {
     console.error('Admin fetch error:', err);
     res.status(500).json({ error: 'Failed to fetch user list for admin.' });
+  }
+});
+
+// DELETE /api/admin/users/:identifier - Delete user by ID or Phone number
+router.delete('/users/:identifier', async (req, res) => {
+  try {
+    const { identifier } = req.params;
+    if (!identifier) {
+      return res.status(400).json({ error: 'User identifier is required.' });
+    }
+
+    const authRoutes = require(path.join(__dirname, 'authRoutes'));
+    const memoryUsers = authRoutes.memoryUsers || new Map();
+
+    let deletedCount = 0;
+
+    // Delete from MongoDB Atlas
+    try {
+      const isObjectId = mongoose.Types.ObjectId.isValid(identifier);
+      const query = isObjectId ? { _id: identifier } : { phone: identifier };
+
+      const targetUser = await User.findOne(query);
+      if (targetUser && memoryUsers.has(targetUser.phone)) {
+        memoryUsers.delete(targetUser.phone);
+      }
+
+      const dbRes = await User.deleteOne(query);
+      deletedCount += dbRes.deletedCount || 0;
+    } catch (dbErr) {
+      console.error('Atlas delete error:', dbErr.message);
+    }
+
+    // Delete from memoryUsers map if present by phone or ID
+    if (memoryUsers.has(identifier)) {
+      memoryUsers.delete(identifier);
+      deletedCount++;
+    } else {
+      for (const [phoneKey, u] of memoryUsers.entries()) {
+        if (u.id === identifier || u._id === identifier || String(u.id) === String(identifier)) {
+          memoryUsers.delete(phoneKey);
+          deletedCount++;
+        }
+      }
+    }
+
+    return res.json({
+      success: true,
+      message: `User deleted successfully.`,
+      deletedCount,
+    });
+  } catch (err) {
+    console.error('Admin delete user error:', err);
+    res.status(500).json({ error: 'Failed to delete user.' });
   }
 });
 
